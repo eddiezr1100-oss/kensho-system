@@ -1,25 +1,49 @@
 import feedparser
 import json
 import os
+from datetime import datetime
 
-def get_rss():
-    # 懸賞生活のRSS
-    RSS_URL = "https://www.knshow.com/index.xml"
-    # feedparserはGASと違い、ブロックされにくいライブラリです
-    feed = feedparser.parse(RSS_URL)
+# 調査対象のRSS（テスト用にYahoo!ニュースを設定）
+RSS_URLS = [
+    "https://news.yahoo.co.jp/rss/topics/it.xml",
+]
+
+# 保存するファイル名
+DATA_FILE = "kensho_data.json"
+
+def get_news():
+    news_list = []
     
-    results = []
-    for entry in feed.entries:
-        results.append({
-            "title": entry.title,
-            "link": entry.link,
-            "date": entry.get("published", "不明")
-        })
+    for url in RSS_URLS:
+        print(f"Checking: {url}")
+        feed = feedparser.parse(url)
+        
+        for entry in feed.entries:
+            # 必要な情報だけを抽出
+            item = {
+                "title": entry.title,
+                "link": entry.link,
+                "date": entry.published if hasattr(entry, 'published') else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "source": feed.feed.title if hasattr(feed.feed, 'title') else "Unknown"
+            }
+            news_list.append(item)
+
+    return news_list
+
+def save_to_json(data):
+    # 既存のデータを読み込む（差分管理をしたい場合はここで処理）
+    # 今回は確実に動作を確認するため、常に最新の20件を上書き保存します
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data[:20], f, ensure_ascii=False, indent=4)
     
-    # JSONとして保存（GASから読み取りやすい形式）
-    with open("kensho_data.json", "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-    print(f"{len(results)} 件のデータを保存しました。")
+    print(f"{len(data[:20])} 件のデータを保存しました。")
 
 if __name__ == "__main__":
-    get_rss()
+    results = get_news()
+    if results:
+        save_to_json(results)
+    else:
+        print("ニュースが見つかりませんでした。")
+        # デバッグ用に空のリストを保存
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f)
