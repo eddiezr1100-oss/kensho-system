@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 【重要】GitHubにファイルを書き込む許可を与える
     permissions:
       contents: write
 
@@ -23,16 +22,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser requests
+          pip install requests beautifulsoup4
 
-      - name: Run RSS script
+      - name: Run Kensho script
         run: python get_rss.py
 
       - name: Commit and Push results
-        # 取得したデータ（ファイル）をGitHubに保存する処理
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
-          git commit -m "Update RSS results" || exit 0
+          git commit -m "Update Kensho data" || exit 0
           git push
