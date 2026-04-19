@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 書き込み権限を追加
+    # 【重要】GitHubにファイルを書き込む許可を与える
     permissions:
       contents: write
 
@@ -29,6 +29,7 @@ jobs:
         run: python get_rss.py
 
       - name: Commit and Push results
+        # 取得したデータ（ファイル）をGitHubに保存する処理
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
