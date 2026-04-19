@@ -2,14 +2,15 @@ name: RSS Recon
 
 on:
   schedule:
-    # 毎日、日本時間の午前9時（UTC 0:00）に自動実行
     - cron: '0 0 * * *'
   workflow_dispatch:
-    # 手動で「出撃ボタン」を押せるようにする設定
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 書き込み権限を追加
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -26,3 +27,11 @@ jobs:
 
       - name: Run RSS script
         run: python get_rss.py
+
+      - name: Commit and Push results
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Update RSS results" || exit 0
+          git push
