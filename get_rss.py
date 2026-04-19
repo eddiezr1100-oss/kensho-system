@@ -1,58 +1,48 @@
-import feedparser
+import requests
+from bs4 import BeautifulSoup
 import json
-import os
 from datetime import datetime
 
-# 偵察対象の懸賞サイトリスト（RSS対応サイトを一括登録）
-RSS_URLS = [
-    "https://www.knshow.com/index.xml",      # 懸賞生活
-    "https://www.ken-kaku.com/rss.xml",      # 懸賞当確
-    "https://kenshobox.net/feed/",           # 懸賞ボックス
-    "https://prizm.jp/feed",                 # ぷりずむ
-    "https://www.sample-fan.com/feed"        # サンプルファン
-]
-
-# 報告書（保存ファイル名）
-DATA_FILE = "kensho_data.json"
-
-def scan_all_kensho():
-    all_kensho_items = []
+def scrape_kensho_seikatsu():
+    url = "https://www.knshow.com/"
+    headers = {'User-Agent': 'Mozilla/5.0'} # ブラウザのふりをする
     
-    print(f"--- 懸賞情報の一括スキャン開始: {datetime.now()} ---")
+    print(f"--- 懸賞生活を直接スキャン中: {url} ---")
     
-    for url in RSS_URLS:
-        try:
-            print(f"Scanning: {url}")
-            feed = feedparser.parse(url)
+    try:
+        response = requests.get(url, headers=headers)
+        response.encoding = 'shift_jis' # 懸賞生活はSJIS形式が多いため
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        items = []
+        
+        # サイト内の「新着懸賞」などのリンクやテキストを探す
+        # ※サイトの構造に合わせて調整済み
+        for link in soup.find_all('a', href=True):
+            title = link.get_text(strip=True)
+            href = link['href']
             
-            # サイト名を取得
-            source_name = feed.feed.title if hasattr(feed.feed, 'title') else url
-            
-            for entry in feed.entries:
-                item = {
-                    "title": entry.title,
-                    "link": entry.link,
-                    "date": entry.published if hasattr(entry, 'published') else "日付不明",
-                    "source": source_name
-                }
-                all_kensho_items.append(item)
-        except Exception as e:
-            print(f"Error scanning {url}: {e}")
-
-    return all_kensho_items
-
-def save_report(data):
-    # 最新の50件程度を保存（まずは量を確認するため多めに設定）
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data[:50], f, ensure_ascii=False, indent=4)
-    
-    print(f"--- スキャン完了: 合計 {len(data)} 件中、最新 {len(data[:50])} 件を保存しました ---")
+            # 懸賞情報っぽリンクだけを抽出
+            if "item" in href and len(title) > 5:
+                full_url = f"https://www.knshow.com{href}" if href.startswith('/') else href
+                items.append({
+                    "title": title,
+                    "link": full_url,
+                    "date": datetime.now().strftime('%Y-%m-%d'),
+                    "source": "懸賞生活"
+                })
+        
+        return items
+    except Exception as e:
+        print(f"エラー発生: {e}")
+        return []
 
 if __name__ == "__main__":
-    results = scan_all_kensho()
+    results = scrape_kensho_seikatsu()
+    
     if results:
-        save_report(results)
+        with open("kensho_data.json", "w", encoding="utf-8") as f:
+            json.dump(results[:30], f, ensure_ascii=False, indent=4)
+        print(f"{len(results[:30])} 件の情報を直接取得しました！")
     else:
-        print("有効な懸賞情報が見つかりませんでした。")
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump([], f)
+        print("情報が取得できませんでした。構造が変わっている可能性があります。")
